@@ -1,16 +1,38 @@
 from fastapi import FastAPI
 import sqlite3
 from pydantic import BaseModel
-from typing import List
 import uvicorn
+import os
 
 app = FastAPI()
 DB_PATH = "news.db"
 
 
+def ensure_db():
+    """Create SQLite table if it doesn't exist."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS news (
+            id INTEGER PRIMARY KEY,
+            title TEXT,
+            link TEXT UNIQUE,
+            published TEXT,
+            source TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
 class NewsQuery(BaseModel):
     query: str = ""
     limit: int = 20
+
+
+@app.on_event("startup")
+def startup_event():
+    ensure_db()
 
 
 @app.get("/")
@@ -20,6 +42,7 @@ def home():
 
 @app.post("/fetch_news")
 def fetch_news(query: NewsQuery):
+    ensure_db()
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
