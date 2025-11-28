@@ -6,7 +6,7 @@ import os
 
 app = FastAPI()
 
-# Use the prebuilt database shipped with the repo
+# Path to the bundled database in the repo
 DB_PATH = os.path.join(os.path.dirname(__file__), "news.db")
 
 
@@ -17,12 +17,15 @@ class NewsQuery(BaseModel):
 
 @app.get("/")
 def home():
-    return {"status": "Santander News Engine is running!", "db_exists": os.path.isfile(DB_PATH)}
+    return {
+        "status": "Santander News Engine is running!",
+        "db_path": DB_PATH,
+        "db_exists": os.path.isfile(DB_PATH)
+    }
 
 
 @app.post("/fetch_news")
 def fetch_news(query: NewsQuery):
-    # Ensure DB file exists
     if not os.path.isfile(DB_PATH):
         return {"error": "news.db not found on server"}
 
