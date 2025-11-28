@@ -1,57 +1,45 @@
-import feedparser
+from fastapi import FastAPI
 import sqlite3
-import datetime
+from pydantic import BaseModel
+from typing import List
+import uvicorn
 
-RSS_FEEDS = [
-    "https://www.svd.se/?service=rss",
-    "https://www.di.se/rss",
-    "http://feeds.reuters.com/reuters/europeBanksNews",
-    "https://www.ecb.europa.eu/press/rss/press.html"
-]
-
+app = FastAPI()
 DB_PATH = "news.db"
 
 
-def create_db():
+class NewsQuery(BaseModel):
+    query: str = ""
+    limit: int = 20
+
+
+@app.get("/")
+def home():
+    return {"status": "Santander News Engine is running!"}
+
+
+@app.post("/fetch_news")
+def fetch_news(query: NewsQuery):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    q = f"%{query.query.lower()}%"
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS news (
-            id INTEGER PRIMARY KEY,
-            title TEXT,
-            link TEXT UNIQUE,
-            published TEXT,
-            source TEXT
-        )
-    """)
-    conn.commit()
+        SELECT title, link, published, source
+        FROM news
+        WHERE LOWER(title) LIKE ?
+        ORDER BY published DESC
+        LIMIT ?
+    """, (q, query.limit))
+
+    rows = cursor.fetchall()
     conn.close()
 
-
-def fetch_and_store():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    for feed_url in RSS_FEEDS:
-        feed = feedparser.parse(feed_url)
-        source = feed_url.split("/")[2]
-
-        for entry in feed.entries:
-            cursor.execute("""
-                INSERT OR IGNORE INTO news (title, link, published, source)
-                VALUES (?, ?, ?, ?)
-            """, (
-                entry.get("title"),
-                entry.get("link"),
-                entry.get("published", str(datetime.datetime.utcnow())),
-                source
-            ))
-
-    conn.commit()
-    conn.close()
+    return [
+        {"title": r[0], "link": r[1], "published": r[2], "source": r[3]}
+        for r in rows
+    ]
 
 
 if __name__ == "__main__":
-    create_db()
-    fetch_and_store()
-    print("News updated!")
+    uvicorn.run(app, host="0.0.0.0", port=10000)
