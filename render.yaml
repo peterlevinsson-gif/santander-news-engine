@@ -3,7 +3,6 @@ services:
     name: santander-news-engine
     env: python
     plan: free
-    buildCommand: |
-buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: python server.py
     autoDeploy: true
