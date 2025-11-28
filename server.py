@@ -5,24 +5,9 @@ import uvicorn
 import os
 
 app = FastAPI()
-DB_PATH = "news.db"
 
-
-def ensure_db():
-    """Create SQLite table if it doesn't exist."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS news (
-            id INTEGER PRIMARY KEY,
-            title TEXT,
-            link TEXT UNIQUE,
-            published TEXT,
-            source TEXT
-        )
-    """)
-    conn.commit()
-    conn.close()
+# Use the prebuilt database shipped with the repo
+DB_PATH = os.path.join(os.path.dirname(__file__), "news.db")
 
 
 class NewsQuery(BaseModel):
@@ -30,19 +15,17 @@ class NewsQuery(BaseModel):
     limit: int = 20
 
 
-@app.on_event("startup")
-def startup_event():
-    ensure_db()
-
-
 @app.get("/")
 def home():
-    return {"status": "Santander News Engine is running!"}
+    return {"status": "Santander News Engine is running!", "db_exists": os.path.isfile(DB_PATH)}
 
 
 @app.post("/fetch_news")
 def fetch_news(query: NewsQuery):
-    ensure_db()
+    # Ensure DB file exists
+    if not os.path.isfile(DB_PATH):
+        return {"error": "news.db not found on server"}
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
