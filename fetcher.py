@@ -1,6 +1,7 @@
 import feedparser
 import sqlite3
 import datetime
+import os
 
 RSS_FEEDS = [
     "https://www.svd.se/?service=rss",
@@ -11,8 +12,8 @@ RSS_FEEDS = [
 
 DB_PATH = "news.db"
 
-
 def create_db():
+    print("Creating or opening database at:", os.path.abspath(DB_PATH))
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -29,12 +30,17 @@ def create_db():
 
 
 def fetch_and_store():
+    print("Fetching feeds...")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    total_inserted = 0
+
     for feed_url in RSS_FEEDS:
+        print("Reading:", feed_url)
         feed = feedparser.parse(feed_url)
         source = feed_url.split("/")[2]
+        print("Entries found:", len(feed.entries))
 
         for entry in feed.entries:
             cursor.execute("""
@@ -46,12 +52,14 @@ def fetch_and_store():
                 entry.get("published", str(datetime.datetime.utcnow())),
                 source
             ))
+            total_inserted += cursor.rowcount
 
     conn.commit()
     conn.close()
+    print("Inserted rows:", total_inserted)
 
 
 if __name__ == "__main__":
     create_db()
     fetch_and_store()
-    print("News updated!")
+    print("Debug: Done")
